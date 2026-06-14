@@ -1,0 +1,12 @@
+# Core
+python-dotenv>=1.0.0
+
+# Qwen interface
+openai>=1.0.0
+
+# Slack interface
+slack-bolt>=1.18.0
+slack-sdk>=3.26.0
+
+# ETL / Data
+openpyxl>=3.1.0
