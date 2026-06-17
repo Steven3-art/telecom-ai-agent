@@ -1,13 +1,17 @@
 """
-qwen_interface/main.py — Version finale
-========================================
-TelecomAI Agent — CRIP Yaoundé / Qwen Cloud
-Track 4 : Autopilot Agent
+qwen_interface/main.py — Internal team interface (fictional demo)
+====================================================================
+TelecomAI Agent — NOC internal interface
+Track 4: Autopilot Agent
 
-3 types de requêtes détectés automatiquement :
-  STATUT       → Consulte AAA → 1 mail diagnostic
-  MOT_DE_PASSE → Reset MDP   → 2 mails (CERAF + nouveau MDP)
-  CDR          → Historique  → 1 mail avec dates connexions
+This file is part of a hackathon demo project. All company names,
+domains, and team identifiers are entirely fictional. No real
+operator, infrastructure, or staff information is used anywhere.
+
+3 request types are detected automatically:
+  STATUS    -> Query AAA -> 1 diagnostic email
+  PASSWORD  -> Reset password -> 2 emails (NOC + Field Ops, new password)
+  CDR       -> Connection history -> 1 email with connection dates
 """
 
 import os, sys, re, random, string
@@ -25,9 +29,11 @@ client = OpenAI(
     api_key=os.getenv("QWEN_API_KEY"),
     base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 )
-MODEL        = "qwen-plus"
-CRIP_EMAIL   = "crip.yaounde@camtel.cm"
-CHEF_CERAF   = os.getenv("CHEF_CERAF_EMAIL", "chef.ceraf@camtel.cm")
+MODEL = "qwen-plus"
+
+# ── Fictional internal team contacts ───────────────────────────
+NOC_EMAIL      = "noc@afritel-demo.com"
+FIELD_OPS_LEAD = os.getenv("FIELD_OPS_LEAD_EMAIL", "field.ops.lead@afritel-demo.com")
 CATEGORIES_MDP = ("MOT_DE_PASSE", "ECHEC_AUTH")
 
 MOIS_FR = {
@@ -36,85 +42,72 @@ MOIS_FR = {
     "septembre":9,"octobre":10,"novembre":11,"décembre":12,"decembre":12
 }
 MOIS_NOMS = {
-    1:"Janvier",2:"Février",3:"Mars",4:"Avril",5:"Mai",6:"Juin",
-    7:"Juillet",8:"Août",9:"Septembre",10:"Octobre",11:"Novembre",12:"Décembre"
+    1:"January",2:"February",3:"March",4:"April",5:"May",6:"June",
+    7:"July",8:"August",9:"September",10:"October",11:"November",12:"December"
 }
 
-# ── Utilitaires ───────────────────────────────────────────────
+# ── Utilities ────────────────────────────────────────────────
 def generer_mdp() -> str:
     p = (random.choices(string.ascii_uppercase,k=4) +
          random.choices(string.digits,k=4) +
          random.choices("@#!*",k=2))
     random.shuffle(p); return "".join(p)
-    
+
+
 def simuler_capture_radius(numero: str, code_erreur: str, message: str) -> str:
-    """Simuler la capture d'écran Radius Login Log collée dans le mail"""
+    """Simulate the Radius/Auth log screenshot pasted into the email body"""
     from datetime import datetime
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if not code_erreur:
         return ""
     return (
         f"\n"
-        f"[Capture Radius Login Log — AAA Platform]\n"
-        f"┌─────────────────────────────────────────────────────┐\n"
-        f"│  User Name  : {numero}@camnet.cm\n"
-        f"│  Date/Heure : {now}\n"
-        f"│  Résultat   : Failed({code_erreur})\n"
-        f"│  Message    : {message}\n"
-        f"└─────────────────────────────────────────────────────┘\n"
+        f"[Auth log capture — AAA platform]\n"
+        f"+-------------------------------------------------------+\n"
+        f"|  User name  : {numero}@demo-isp.net\n"
+        f"|  Timestamp  : {now}\n"
+        f"|  Result     : Failed({code_erreur})\n"
+        f"|  Message    : {message}\n"
+        f"+-------------------------------------------------------+\n"
     )
 
 
 def simuler_capture_subscriber(numero: str, statut: str) -> str:
-    """Simuler la capture Subscriber Information"""
+    """Simulate the Subscriber Information screenshot pasted into the email body"""
     from datetime import datetime
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return (
         f"\n"
-        f"[Capture Subscriber Information — AAA Platform]\n"
-        f"┌─────────────────────────────────────────────────────┐\n"
-        f"│  Login Name : {numero}@camnet.cm\n"
-        f"│  Status     : {statut}\n"
-        f"│  Date/Heure : {now}\n"
-        f"└─────────────────────────────────────────────────────┘\n"
-    )    
+        f"[Subscriber info capture — AAA platform]\n"
+        f"+-------------------------------------------------------+\n"
+        f"|  Login name : {numero}@demo-isp.net\n"
+        f"|  Status     : {statut}\n"
+        f"|  Timestamp  : {now}\n"
+        f"+-------------------------------------------------------+\n"
+    )
 
-def extraire_numero(texte: str) -> str | None:
-    m = re.search(r'\b\d{9}\b', texte)
-    if m: return m.group()
-    try:
-        r = client.chat.completions.create(
-            model=MODEL, max_tokens=30,
-            messages=[
-                {"role":"system","content":"Extrais le numéro abonné FTTH 9 chiffres. Réponds UNIQUEMENT avec le numéro ou AUCUN."},
-                {"role":"user","content":texte}
-            ])
-        res = r.choices[0].message.content.strip()
-        m2 = re.search(r'\d{9}', res)
-        return m2.group() if m2 else None
-    except: return None
 
 def analyser_mail(objet: str, corps: str) -> dict:
     """
-    Qwen analyse le mail complet et extrait toutes les infos.
-    Retourne : {"numero": "...", "type": "...", "mois": [...]}
+    Use Qwen to analyze the full email (subject + body) and extract
+    the subscriber number, the request type, and any mentioned months.
     """
-    prompt = f"""Tu analyses des mails reçus au CRIP CAMTEL Yaoundé 
-(Centre Régional IP/Internet). Ces mails viennent d'agences 
-commerciales et de CERAF concernant des lignes FTTH.
+    prompt = f"""You analyze emails received by a fictional ISP's
+internal Network Operations Center (NOC). These emails come from
+sales agencies and field teams about fiber (FTTH) subscriber lines.
 
-OBJET DU MAIL : {objet or '(vide)'}
-CORPS DU MAIL : {corps}
+SUBJECT: {objet or '(empty)'}
+BODY: {corps}
 
-Extrais ces informations et réponds UNIQUEMENT en JSON valide :
+Extract this information and respond ONLY with valid JSON:
 {{
-  "numero": "le numéro abonné FTTH à 9 chiffres (ex: 222311395) ou null",
-  "type": "STATUT si on demande le statut ou problème connexion, CDR si on demande dates/historique/dernière connexion/authentification, INCONNU sinon",
-  "mois": ["Mai 2026", "Juin 2026"] si des mois sont mentionnés sinon null
+  "numero": "the 9-digit subscriber number (e.g. 222311395) or null",
+  "type": "STATUS if asking about status or connection issue, CDR if asking about dates/history/last connection/authentication, UNKNOWN otherwise",
+  "mois": ["May 2026", "June 2026"] if specific months are mentioned, else null
 }}
 
-Exemples de numéros : après 'du', 'LIGNE:', 'ABONNEMENT:', 'le', numéro en objet...
-Réponds UNIQUEMENT avec le JSON, sans explication."""
+The number may appear after words like 'line', 'subscriber', 'number', in the subject, or anywhere else.
+Respond ONLY with the JSON, no explanation."""
 
     try:
         r = client.chat.completions.create(
@@ -123,123 +116,114 @@ Réponds UNIQUEMENT avec le JSON, sans explication."""
         )
         import json
         texte_json = r.choices[0].message.content.strip()
-        # Nettoyer si Qwen ajoute des backticks
         texte_json = texte_json.replace("```json","").replace("```","").strip()
         data = json.loads(texte_json)
         return {
             "numero": data.get("numero"),
-            "type":   data.get("type","STATUT"),
+            "type":   data.get("type","STATUS"),
             "mois":   data.get("mois")
         }
-    except Exception as e:
-        # Fallback regex si Qwen échoue
-        import re
+    except Exception:
         m = re.search(r'\b\d{9}\b', f"{objet} {corps}")
-        return {
-            "numero": m.group() if m else None,
-            "type":   "STATUT",
-            "mois":   None
-        }
+        return {"numero": m.group() if m else None, "type": "STATUS", "mois": None}
 
-def extraire_mois(texte: str) -> list:
-    t = texte.lower()
-    annees = re.findall(r'20\d{2}', texte)
-    annee = int(annees[0]) if annees else date.today().year
-    res = []
-    for nom,num in MOIS_FR.items():
-        if nom in t and (annee,num) not in res:
-            res.append((annee,num))
-    return res or None
 
-# ── Préparation mails ─────────────────────────────────────────
+def convertir_mois(mois_texte: list) -> list:
+    """Convert ["May 2026","June 2026"] -> [(2026,5),(2026,6)]"""
+    if not mois_texte:
+        return None
+    MOIS_EN = {
+        "january":1,"february":2,"march":3,"april":4,"may":5,"june":6,
+        "july":7,"august":8,"september":9,"october":10,"november":11,"december":12
+    }
+    resultat = []
+    for m in mois_texte:
+        ml = m.lower()
+        for nom, num in MOIS_EN.items():
+            if nom in ml:
+                annees = re.findall(r'20\d{2}', m)
+                annee = int(annees[0]) if annees else date.today().year
+                if (annee, num) not in resultat:
+                    resultat.append((annee, num))
+    return resultat or None
+
+
+# ── Email preparation ──────────────────────────────────────────
 def mail_statut(numero, resultat, expediteur):
-    zone        = resultat.get("zone",{})
-    recommande  = resultat.get("reponse_whatsapp","")
-    code_erreur = resultat.get("code_erreur","")
-    categorie   = resultat.get("categorie","")
-    # Générer la capture simulée selon le cas
-    if categorie in ("BLOCAGE_CRM","ECHEC_AUTH","ABSENCE_AUTH","MOT_DE_PASSE"):
-        capture = simuler_capture_radius(
-            numero, code_erreur, resultat.get("message","")
-        )
-    elif categorie in ("SUSPENDU","INEXISTANT"):
-        capture = simuler_capture_subscriber(
-            numero, resultat.get("statut","?")
-        )
+    zone        = resultat.get("zone", {})
+    recommande  = resultat.get("reponse_whatsapp", "")
+    code_erreur = resultat.get("code_erreur", "")
+    categorie   = resultat.get("categorie", "")
+
+    if categorie in ("BLOCAGE_CRM", "ECHEC_AUTH", "ABSENCE_AUTH", "MOT_DE_PASSE"):
+        capture = simuler_capture_radius(numero, code_erreur, resultat.get("message",""))
+    elif categorie in ("SUSPENDU", "INEXISTANT"):
+        capture = simuler_capture_subscriber(numero, resultat.get("statut","?"))
     elif categorie == "NORMAL_SANS_TRAFIC":
-        capture = simuler_capture_subscriber(numero, "Normal — Session active, 0 MB")
+        capture = simuler_capture_subscriber(numero, "Normal — active session, 0 MB")
     else:
         capture = ""
 
-    prompt = (f"Tu es CRIP CAMTEL Yaoundé. Rédige un mail COURT et PROFESSIONNEL "
-              f"pour la ligne {numero} ({zone.get('zone','?')}).\n"
-              f"Statut AAA       : {resultat.get('statut','?')}\n"
-              f"Recommandation   : {recommande}\n\n"
-              f"IMPORTANT : Inclus la recommandation telle quelle. "
-              f"Termine le mail avant 'Cordialement'. "
-              f"Sois professionnel et concis.")
+    prompt = (f"You work at the NOC of a fictional ISP. Write a SHORT, "
+              f"PROFESSIONAL email for line {numero} ({zone.get('zone','?')}).\n"
+              f"AAA status     : {resultat.get('statut','?')}\n"
+              f"Recommendation : {recommande}\n\n"
+              f"IMPORTANT: include the recommendation as-is. "
+              f"Do NOT include any closing or signature (no 'Best regards', "
+              f"no name) — that will be added separately. "
+              f"Be professional and concise.")
     try:
         r = client.chat.completions.create(model=MODEL, max_tokens=200,
             messages=[{"role":"user","content":prompt}])
         corps = r.choices[0].message.content.strip()
-    except:
-        corps = (f"Bonjour,\n\nConcernant la ligne {numero} :\n\n"
-                 f"{recommande}\n\nCordialement,\nCRIP Yaoundé")
+    except Exception:
+        corps = f"Hello,\n\nRegarding line {numero}:\n\n{recommande}"
 
-    # Ajouter la capture DANS le corps du mail
-    corps_final = corps + "\n" + capture + f"\nCordialement,\nCRIP Yaoundé — {CRIP_EMAIL}"
+    corps_final = corps + "\n" + capture + f"\nBest regards,\nNOC — AfriTel"
 
     return {"type":"statut","mails":[{
         "a":expediteur,"cc":"",
-        "objet":f"[CRIP] Diagnostic AAA — {numero} — {zone.get('ville','Yaoundé')}",
+        "objet":f"[NOC] AAA diagnosis — {numero} — {zone.get('ville','Capital City')}",
         "corps":corps_final}]}
-    try:
-        r = client.chat.completions.create(model=MODEL,max_tokens=200,
-            messages=[{"role":"user","content":prompt}])
-        corps = r.choices[0].message.content.strip()
-    except:
-        corps = (f"Bonjour,\n\nConcernant la ligne {numero} :\n\n"
-                 f"{resultat.get('message','?')}\n\nCordialement,\nCRIP Yaoundé")
-    return {"type":"statut","mails":[{
-        "a":expediteur,"cc":"",
-        "objet":f"[CRIP] Diagnostic AAA — {numero} — {zone.get('ville','Yaoundé')}",
-        "corps":corps}]}
+
 
 def mail_mdp(numero, resultat, expediteur):
-    zone = resultat.get("zone",{})
+    zone = resultat.get("zone", {})
     mdp  = generer_mdp()
     try:
-        r = client.chat.completions.create(model=MODEL,max_tokens=150,
+        r = client.chat.completions.create(model=MODEL, max_tokens=150,
             messages=[{"role":"user","content":
-                f"CRIP CAMTEL Yaoundé. Mail COURT : problème mot de passe "
-                f"(CHAP failed ou Blacklist) sur ligne {numero}. "
-                f"CERAF doit envoyer mail à {CRIP_EMAIL} pour nouveau MDP. "
-                f"Ajouter en fin : 'NB : Capture d'écran Radius Login Log "
-                f"en pièce jointe (erreur visible).' Sois bref."}])
+                f"You work at the NOC of a fictional ISP. Write a SHORT email: "
+                f"password issue (CHAP failed or blacklist) on line {numero}. "
+                f"Field Ops must email {NOC_EMAIL} for a new password. Be brief."}])
         corps1 = r.choices[0].message.content.strip()
-    except:
-        corps1 = (f"Bonjour,\n\nProblème de mot de passe détecté sur la ligne {numero}.\n"
-                  f"Le CERAF doit envoyer un mail à {CRIP_EMAIL} pour demander un nouveau mot de passe.\n\n"
-                  f"Cordialement,\nCRIP Yaoundé")
-    corps2 = (f"Bonjour,\n\nSuite à votre demande pour la ligne {numero} "
-              f"({zone.get('zone','?')}) :\n\n"
-              f"Nous avons réinitialisé le mot de passe dans la plateforme AAA.\n\n"
-              f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-              f"  Numéro      : {numero}\n"
-              f"  Nouveau MDP : {mdp}\n"
-              f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-              f"Merci de configurer ce mot de passe côté client via NCE.\n"
-              f"Le client devra redémarrer son équipement ensuite.\n\n"
-              f"Cordialement,\nCRIP Yaoundé — {CRIP_EMAIL}")
-              # Ajouter capture Radius Login Log dans mail 1
+    except Exception:
+        corps1 = (f"Hello,\n\nA password issue was detected on line {numero}.\n"
+                  f"Field Ops must email {NOC_EMAIL} to request a new password.\n\n"
+                  f"Best regards,\nNOC — AfriTel")
+
     capture_radius = simuler_capture_radius(
-        numero, "109020102", "CHAP authentication failed / Subscriber blacklisted"
+        numero, "109020102", "CHAP authentication failed / subscriber blacklisted"
     )
     corps1 = corps1 + "\n" + capture_radius
+
+    corps2 = (f"Hello,\n\nFollowing your request for line {numero} "
+              f"({zone.get('zone','?')}):\n\n"
+              f"The password has been reset on the AAA platform.\n\n"
+              f"-------------------------------\n"
+              f"  Number      : {numero}\n"
+              f"  New password: {mdp}\n"
+              f"-------------------------------\n\n"
+              f"Please configure this password on the customer's line "
+              f"via the provisioning tool.\n"
+              f"The customer should restart their equipment afterward.\n\n"
+              f"Best regards,\nNOC — AfriTel ({NOC_EMAIL})")
+
     return {"type":"mot_de_passe","nouveau_mdp":mdp,"mails":[
-        {"a":expediteur,"cc":"","objet":f"[CRIP] Problème mot de passe — {numero}","corps":corps1},
-        {"a":expediteur,"cc":CHEF_CERAF,"objet":f"[CRIP] Nouveau mot de passe AAA — {numero}","corps":corps2}
+        {"a":expediteur,"cc":"","objet":f"[NOC] Password issue — {numero}","corps":corps1},
+        {"a":expediteur,"cc":FIELD_OPS_LEAD,"objet":f"[NOC] New AAA password — {numero}","corps":corps2}
     ]}
+
 
 def mail_cdr(numero, zone, mois_liste, expediteur):
     aaa = AAAMockClient()
@@ -247,94 +231,79 @@ def mail_cdr(numero, zone, mois_liste, expediteur):
         auj = date.today()
         mois_liste = [(auj.year, auj.month)]
     lignes = []
-    for (annee,mois) in mois_liste:
+    for (annee, mois) in mois_liste:
         cdr = aaa.consulter_cdr(numero, mois, annee)
         nom = f"{MOIS_NOMS[mois]} {annee}"
         if cdr["total"] == 0:
-            lignes.append(f"- {nom} = Aucune authentification à ce jour")
+            lignes.append(f"- {nom} = No authentication on record")
         else:
-            p = cdr["premiere"].replace(" "," à ",1) if cdr["premiere"] else "N/A"
-            d = cdr["derniere"].replace(" "," à ",1) if cdr["derniere"] else "N/A"
-            lignes.append(f"- {nom} = Première authentification le {p}. "
-                          f"Dernière authentification le {d}")
+            p = cdr["premiere"].replace(" "," at ",1) if cdr["premiere"] else "N/A"
+            d = cdr["derniere"].replace(" "," at ",1) if cdr["derniere"] else "N/A"
+            lignes.append(f"- {nom} = First authentication on {p}. "
+                          f"Last authentication on {d}")
     mois_str = " / ".join(f"{MOIS_NOMS[m]} {a}" for a,m in mois_liste)
-    corps = (f"Bonjour,\n\nSuite à votre demande pour la ligne "
-             f"{numero} ({zone.get('zone','?')}) :\n\n"
+    corps = (f"Hello,\n\nFollowing your request for line "
+             f"{numero} ({zone.get('zone','?')}):\n\n"
              + "\n".join(lignes) +
-             f"\n\nCordialement,\nCRIP Yaoundé — {CRIP_EMAIL}")
+             f"\n\nBest regards,\nNOC — AfriTel ({NOC_EMAIL})")
     return {"type":"cdr","mails":[{
         "a":expediteur,"cc":"",
-        "objet":f"[CRIP] Historique connexions — {numero} — {mois_str}",
+        "objet":f"[NOC] Connection history — {numero} — {mois_str}",
         "corps":corps}]}
 
-# ── Affichage ─────────────────────────────────────────────────
 
-def convertir_mois(mois_texte: list) -> list:
-    """Convertir ["Mai 2026","Juin 2026"] → [(2026,5),(2026,6)]"""
-    if not mois_texte: return None
-    resultat = []
-    for m in mois_texte:
-        for nom,num in MOIS_FR.items():
-            if nom in m.lower():
-                annees = re.findall(r'20\d{2}', m)
-                annee = int(annees[0]) if annees else date.today().year
-                if (annee,num) not in resultat:
-                    resultat.append((annee,num))
-    return resultat or None
-
+# ── Display ──────────────────────────────────────────────────
 def afficher(prep):
     mails = prep.get("mails",[])
-    print(f"\n{'═'*60}")
-    icons = {"statut":"📋","mot_de_passe":"🔑","cdr":"📅"}
-    labels = {"statut":"STATUT","mot_de_passe":"MOT DE PASSE","cdr":"CDR HISTORIQUE"}
+    print(f"\n{'='*60}")
+    icons  = {"statut":"[STATUS]","mot_de_passe":"[PASSWORD]","cdr":"[CDR]"}
+    labels = {"statut":"STATUS","mot_de_passe":"PASSWORD","cdr":"CDR HISTORY"}
     t = prep.get("type","?")
-    print(f"{icons.get(t,'📧')} CAS {labels.get(t,'?')} — {len(mails)} mail(s)")
+    print(f"{icons.get(t,'[MAIL]')} CASE {labels.get(t,'?')} — {len(mails)} email(s)")
     if t == "mot_de_passe":
-        print(f"   ⚠️  Changer MDP dans AAA avant d'envoyer !")
-        print(f"   🔑 Nouveau MDP : {prep.get('nouveau_mdp','?')}")
-    print(f"{'═'*60}")
+        print(f"   Reminder: reset the password in AAA before sending!")
+        print(f"   New password: {prep.get('nouveau_mdp','?')}")
+    print(f"{'='*60}")
     for i,mail in enumerate(mails,1):
-        print(f"\n{'─'*60}  📧 MAIL {i}/{len(mails)}")
-        print(f"  À      : {mail['a']}")
+        print(f"\n{'-'*60}  EMAIL {i}/{len(mails)}")
+        print(f"  To     : {mail['a']}")
         if mail.get("cc"): print(f"  CC     : {mail['cc']}")
-        print(f"  Objet  : {mail['objet']}")
-        print(f"{'─'*60}")
+        print(f"  Subject: {mail['objet']}")
+        print(f"{'-'*60}")
         print(mail["corps"])
-    print(f"\n{'═'*60}")
+    print(f"\n{'='*60}")
 
-# ── Pipeline principal ────────────────────────────────────────
-def traiter(corps: str, objet: str = "", expediteur: str = "agence@camtel.cm") -> dict:
-    print(f"\n{'═'*60}")
-    print(f"📨 Mail : {corps[:60]}...")
-    print(f"{'═'*60}")
 
-    # Qwen analyse tout le mail
-    print("🤖 Analyse Qwen du mail...")
-    analyse = analyser_mail(objet, corps)
-    numero  = analyse.get("numero")
-    type_req = analyse.get("type","STATUT")
-    mois    = analyse.get("mois")
+# ── Main pipeline ────────────────────────────────────────────
+def traiter(corps: str, objet: str = "", expediteur: str = "agency@afritel-demo.com") -> dict:
+    print(f"\n{'='*60}")
+    print(f"Email: {corps[:60]}")
+    print(f"{'='*60}")
 
-    print(f"   ✅ Numéro : {numero}")
-    print(f"   ✅ Type   : {type_req}")
-    if mois: print(f"   ✅ Mois   : {mois}")
+    print("Analyzing email with Qwen...")
+    analyse  = analyser_mail(objet, corps)
+    numero   = analyse.get("numero")
+    type_req = analyse.get("type","STATUS")
+    mois     = analyse.get("mois")
+
+    print(f"   Number: {numero}")
+    print(f"   Type  : {type_req}")
+    if mois: print(f"   Months: {mois}")
 
     if not numero:
-        print("❌ Numéro introuvable")
-        return {"succes":False,"erreur":"Numéro FTTH introuvable"}
+        print("Number not found")
+        return {"succes":False,"erreur":"Subscriber number not found"}
 
     agent = TelecomAIAgent()
 
     if type_req == "CDR":
-        # Convertir mois texte en liste (annee, mois)
         mois_liste = convertir_mois(mois) if mois else None
         res  = agent.traiter(numero)
         prep = mail_cdr(numero, res.get("zone",{}), mois_liste, expediteur)
-
-    else:  # STATUT — AAA décide du vrai diagnostic
-        res  = agent.traiter(numero)
-        cat  = res.get("categorie","INCONNU")
-        print(f"   🔍 AAA → {cat}")
+    else:
+        res = agent.traiter(numero)
+        cat = res.get("categorie","INCONNU")
+        print(f"   AAA -> {cat}")
         if cat in CATEGORIES_MDP:
             prep = mail_mdp(numero, res, expediteur)
         else:
@@ -343,26 +312,28 @@ def traiter(corps: str, objet: str = "", expediteur: str = "agence@camtel.cm") -
     afficher(prep)
     prep.update({"succes":True,"numero":numero})
     return prep
-# ── CLI ───────────────────────────────────────────────────────
+
+
+# ── CLI ──────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("\n"+"="*60)
-    print("  🤖 TELECOMAI AGENT — CRIP Yaoundé / Qwen Cloud")
-    print("  Track 4 : Autopilot Agent")
+    print("  TELECOMAI AGENT — NOC internal interface / Qwen Cloud")
+    print("  Track 4: Autopilot Agent")
     print("="*60)
-    print("\nExemples réels :")
-    print("  → 'Prière vérifier le statut du 222230906'")
-    print("  → 'le numero 222316544 a un problème de mot de passe'")
-    print("  → 'date de la dernière authentification Mai Juin 2026 LIGNE: 222302628'")
-    print("\nTapez 'quit' pour quitter\n")
+    print("\nExample requests:")
+    print("  -> 'Please check the status of line 222230906'")
+    print("  -> 'subscriber 222316544 has a password issue'")
+    print("  -> 'last authentication dates for May and June 2026 - line 222302628'")
+    print("\nType 'quit' to exit\n")
 
     while True:
         try:
-            texte = input("📨 Contenu du mail : ").strip()
+            texte = input("Email body: ").strip()
             if texte.lower() in ("quit","exit","q"):
-                print("\n👋 Au revoir !\n"); break
+                print("\nSession ended\n"); break
             if not texte: continue
-            objet = input("📌 Objet du mail (ENTER si vide) : ").strip()
-            exp   = input("📧 Expéditeur (ENTER = agence@camtel.cm) : ").strip()
-            traiter(texte, objet, exp or "agence@camtel.cm")
+            objet = input("Email subject (ENTER if empty): ").strip()
+            exp   = input("Sender (ENTER = agency@afritel-demo.com): ").strip()
+            traiter(texte, objet, exp or "agency@afritel-demo.com")
         except KeyboardInterrupt:
-            print("\n\n👋 Au revoir !\n"); break
+            print("\n\nSession ended\n"); break

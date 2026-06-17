@@ -1,0 +1,70 @@
+<svg width="680" height="620" viewBox="0 0 680 620" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>TelecomAI Agent pipeline architecture</title>
+<desc>Diagram showing how internal emails and client WhatsApp messages pass through Qwen Cloud on Alibaba Cloud, then through the Core Agent with AAA simulation and diagnostics, get recorded into the ETL customer database, then generate either internal emails to the CRIP team or client WhatsApp responses with a tracking ticket.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#444441" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<rect width="680" height="620" fill="#FFFFFF"/>
+
+<!-- Row 1: Inputs (gray) -->
+<g>
+<rect x="60" y="40" width="240" height="56" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="180" y="58" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#444441" dominant-baseline="central">Internal email</text>
+<text x="180" y="76" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#5F5E5A" dominant-baseline="central">Sales agencies &amp; field teams</text>
+</g>
+
+<g>
+<rect x="380" y="40" width="240" height="56" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="500" y="58" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#444441" dominant-baseline="central">Client message</text>
+<text x="500" y="76" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#5F5E5A" dominant-baseline="central">WhatsApp Business</text>
+</g>
+
+<line x1="180" y1="96" x2="260" y2="160" stroke="#444441" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="500" y1="96" x2="420" y2="160" stroke="#444441" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Row 2: Qwen Cloud (blue) -->
+<g>
+<rect x="210" y="160" width="260" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="340" y="178" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#0C447C" dominant-baseline="central">Qwen Cloud</text>
+<text x="340" y="196" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#185FA5" dominant-baseline="central">Alibaba Cloud API (dashscope)</text>
+</g>
+
+<line x1="340" y1="216" x2="340" y2="280" stroke="#444441" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Row 3: Core Agent (blue) -->
+<g>
+<rect x="210" y="280" width="260" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="340" y="298" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#0C447C" dominant-baseline="central">Core agent</text>
+<text x="340" y="316" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#185FA5" dominant-baseline="central">AAA mock + diagnostics</text>
+</g>
+
+<line x1="340" y1="336" x2="340" y2="400" stroke="#444441" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Row 4: ETL store (gray) -->
+<g>
+<rect x="210" y="400" width="260" height="56" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="340" y="418" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#444441" dominant-baseline="central">Customer ETL store</text>
+<text x="340" y="436" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#5F5E5A" dominant-baseline="central">Deduplicated history</text>
+</g>
+
+<line x1="340" y1="456" x2="180" y2="520" stroke="#444441" stroke-width="1.5" marker-end="url(#arrow)"/>
+<line x1="340" y1="456" x2="500" y2="520" stroke="#444441" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Row 5: Outputs (gray) -->
+<g>
+<rect x="60" y="520" width="240" height="56" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="180" y="538" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#444441" dominant-baseline="central">NOC emails</text>
+<text x="180" y="556" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#5F5E5A" dominant-baseline="central">Diagnosis and action</text>
+</g>
+
+<g>
+<rect x="380" y="520" width="240" height="56" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text x="500" y="538" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#444441" dominant-baseline="central">Client response</text>
+<text x="500" y="556" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#5F5E5A" dominant-baseline="central">WhatsApp + ticket</text>
+</g>
+
+<text x="60" y="600" font-family="Arial, sans-serif" font-size="12" fill="#5F5E5A" dominant-baseline="central">Gray = channels and data &#183; Blue = AI engine (Alibaba Cloud / Qwen)</text>
+</svg>

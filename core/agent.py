@@ -1,6 +1,11 @@
 """
-core/agent.py — Pipeline principal TelecomAI
+core/agent.py — TelecomAI main pipeline (fictional demo)
+============================================================
+This file is part of a hackathon demo project. It orchestrates
+the fictional AAA mock and diagnostics modules. No real operator
+data is used anywhere.
 """
+
 from .aaa_mock    import AAAMockClient
 from .diagnostics import generer_diagnostic, identifier_zone
 
@@ -11,20 +16,20 @@ class TelecomAIAgent:
         self.aaa = AAAMockClient()
 
     def traiter(self, numero: str) -> dict:
-        """Pipeline complet : numéro → diagnostic"""
+        """Full pipeline: subscriber number -> diagnosis"""
 
-        # Étape 1 — Statut AAA
+        # Step 1 - AAA status
         statut = self.aaa.consulter_statut(numero)
         status = statut.get("status", "")
 
-        # Étape 2 — Radius (si Normal)
+        # Step 2 - Authentication log (if Normal)
         if status == "Normal":
             radius = self.aaa.consulter_radius(numero)
         else:
             radius = {"connecte": False, "codes_erreur": {},
                       "nb_successful": 0, "nb_failed": 0, "trafic_mb": 0}
 
-        # Étape 3 — Diagnostic
+        # Step 3 - Diagnosis
         diag = generer_diagnostic(statut, radius)
 
         return {
@@ -35,8 +40,8 @@ class TelecomAIAgent:
             "code_erreur":      diag.get("code_erreur"),
             "message":          diag.get("message", ""),
             "reponse_whatsapp": diag.get("reponse_whatsapp", ""),
-            "action_crip":      diag.get("action_crip", "info_only"),
-            "urgence":          "HAUTE" if diag.get("action_crip") == "reset_mdp" else "NORMALE",
+            "action_required":  diag.get("action_required", "info_only"),
+            "urgence":          "HIGH" if diag.get("action_required") == "reset_mdp" else "NORMAL",
         }
 
     def traiter_batch(self, numeros: list) -> list:
