@@ -1,156 +1,158 @@
 """
-aaa_mock.py — Simulation du portail AAA FTTH
-=============================================
-Données 100% fictives pour la démo hackathon.
-Aucune donnée réelle CAMTEL n'est utilisée ici.
-L'architecture est identique au système réel.
+core/aaa_mock.py — Version réelle CAMTEL
+==========================================
+Simulation du portail AAA avec les vrais codes erreur.
+Données abonnés 100% fictives — logique 100% réelle.
 """
 
 import random
 from datetime import datetime, timedelta
+from .diagnostics import CODES_ERREUR_AAA
 
-
-# ── Faux abonnés fictifs (structure identique à la réalité) ──
+# ── Profils abonnés fictifs avec codes erreur réels ──────────
 ABONNES_FICTIFS = {
+    # Normal connecté avec trafic
     "222230001": {
-        "statut":    "Normal",
-        "login":     "222230001@camnet.cm",
-        "zone":      "Zone Yaoundé Centre",
-        "central":   "CTN",
-        "historique": True,   # a des sessions récentes
-        "derniere_session": "2026-06-13 08:45:00",
+        "statut": "Normal", "connecte": True, "trafic_mb": 245.3,
+        "codes_erreur": {}, "nb_successful": 15, "nb_failed": 0,
+        "zone": "22"
     },
-    "222310002": {
-        "statut":    "Suspend",
-        "login":     "222310002@camnet.cm",
-        "zone":      "Zone Yaoundé Biyem-Assi",
-        "central":   "Central BYM",
-        "historique": False,
-        "derniere_session": None,
-    },
+    # Absence d'authentification (code 109020018)
     "222230003": {
-        "statut":    "Normal",
-        "login":     "222230003@camnet.cm",
-        "zone":      "Zone Yaoundé Centre",
-        "central":   "CTN",
-        "historique": False,  # pas de session = absence auth
-        "derniere_session": "2026-04-02 14:22:00",
+        "statut": "Normal", "connecte": False, "trafic_mb": 0,
+        "codes_erreur": {}, "nb_successful": 0, "nb_failed": 0,
+        "zone": "22"
     },
+    # Problème mot de passe CHAP (code 109020102)
+    "222310002": {
+        "statut": "Normal", "connecte": False, "trafic_mb": 0,
+        "codes_erreur": {"109020102": 8}, "nb_successful": 0, "nb_failed": 8,
+        "zone": "31"
+    },
+    # Blacklisté (code 109022520)
+    "222316544": {
+        "statut": "Normal", "connecte": False, "trafic_mb": 0,
+        "codes_erreur": {"109022520": 3}, "nb_successful": 0, "nb_failed": 3,
+        "zone": "31"
+    },
+    # Suspendu (code 109020122)
+    "222311395": {
+        "statut": "Suspend", "connecte": False, "trafic_mb": 0,
+        "codes_erreur": {}, "nb_successful": 0, "nb_failed": 0,
+        "zone": "31"
+    },
+    # Échec auth terminal (code 109020207)
     "222270004": {
-        "statut":    "Normal",
-        "login":     "222270004@camnet.cm",
-        "zone":      "Zone Garoua",
-        "central":   "Central GRA",
-        "historique": True,
-        "derniere_session": "2026-06-12 20:11:00",
+        "statut": "Normal", "connecte": False, "trafic_mb": 0,
+        "codes_erreur": {"109020207": 5}, "nb_successful": 0, "nb_failed": 5,
+        "zone": "27"
     },
-    "222440005": {
-        "statut":    "Normal",
-        "login":     "222440005@camnet.cm",
-        "zone":      "Zone Bafoussam",
-        "central":   "Central Bfs",
-        "historique": False,
-        "derniere_session": "2026-05-15 09:00:00",
+    # Blocage CRM (code 109129999)
+    "222230906": {
+        "statut": "Normal", "connecte": False, "trafic_mb": 0,
+        "codes_erreur": {"109129999": 2}, "nb_successful": 0, "nb_failed": 2,
+        "zone": "23"
     },
+    # Suspendu impayé (code 109020106)
+    "222201181": {
+        "statut": "Suspend", "connecte": False, "trafic_mb": 0,
+        "codes_erreur": {}, "nb_successful": 0, "nb_failed": 0,
+        "zone": "20"
+    },
+    # Inexistant
     "222990999": {
-        "statut":    "No record found",
-        "login":     None,
-        "zone":      None,
-        "central":   None,
-        "historique": False,
-        "derniere_session": None,
+        "statut": "No record found", "connecte": False, "trafic_mb": 0,
+        "codes_erreur": {}, "nb_successful": 0, "nb_failed": 0,
+        "zone": None
+    },
+    # Normal sans trafic (équipement client)
+    "222302375": {
+        "statut": "Normal", "connecte": True, "trafic_mb": 0,
+        "codes_erreur": {}, "nb_successful": 3, "nb_failed": 0,
+        "zone": "30"
+    },
+    # CDR disponible
+    "222302628": {
+        "statut": "Normal", "connecte": True, "trafic_mb": 180.5,
+        "codes_erreur": {}, "nb_successful": 22, "nb_failed": 0,
+        "zone": "30"
     },
 }
 
 
 class AAAMockClient:
     """
-    Client de simulation du portail AAA.
-    Reproduit fidèlement la structure des réponses réelles
-    sans exposer aucune donnée confidentielle.
+    Simulation du portail AAA CAMTEL.
+    Reproduit la structure et la logique réelle.
     """
 
     def consulter_statut(self, numero: str) -> dict:
-        """Simuler la consultation Subscriber Information"""
-        abonne = ABONNES_FICTIFS.get(numero)
-        if not abonne:
-            # Numéro inconnu → générer une réponse aléatoire réaliste
-            abonne = self._generer_abonne_fictif(numero)
-
+        """Simuler Subscriber Information"""
+        abonne = self._get_abonne(numero)
         return {
             "numero":  numero,
-            "login":   abonne.get("login") or f"{numero}@camnet.cm",
+            "login":   f"{numero}@camnet.cm",
             "status":  abonne["statut"],
-            "zone":    abonne.get("zone",    "Zone inconnue"),
-            "central": abonne.get("central", "Central inconnu"),
+            "zone":    abonne.get("zone"),
         }
 
     def consulter_radius(self, numero: str) -> dict:
-        """Simuler la consultation Radius Login Log"""
-        abonne = ABONNES_FICTIFS.get(numero, {})
-        has_hist = abonne.get("historique", False)
-        last_sess = abonne.get("derniere_session")
-
-        if abonne.get("statut") == "Suspend":
-            return {"success": False, "raison": "Compte suspendu"}
-
-        if not has_hist or not last_sess:
-            return {
-                "success":   True,
-                "connecte":  False,
-                "derniere":  last_sess,
-                "nb_echecs": random.randint(0, 3),
-            }
-
+        """Simuler Radius Login Log"""
+        abonne = self._get_abonne(numero)
+        if abonne["statut"] != "Normal":
+            return {"connecte": False, "codes_erreur": {},
+                    "nb_successful": 0, "nb_failed": 0, "trafic_mb": 0}
         return {
-            "success":    True,
-            "connecte":   True,
-            "ip":         f"10.1.{random.randint(1,254)}.{random.randint(1,254)}",
-            "derniere":   last_sess,
-            "trafic_mb":  round(random.uniform(10, 500), 2),
-            "nb_echecs":  0,
+            "connecte":     abonne.get("connecte", False),
+            "trafic_mb":    abonne.get("trafic_mb", 0),
+            "codes_erreur": abonne.get("codes_erreur", {}),
+            "nb_successful": abonne.get("nb_successful", 0),
+            "nb_failed":    abonne.get("nb_failed", 0),
         }
 
     def consulter_cdr(self, numero: str, mois: int, annee: int) -> dict:
-        """Simuler la consultation Query CDRs"""
-        abonne = ABONNES_FICTIFS.get(numero, {})
-        if not abonne.get("historique"):
+        """Simuler Query CDRs"""
+        abonne = self._get_abonne(numero)
+        if abonne["statut"] != "Normal" or abonne.get("nb_successful", 0) == 0:
             return {"total": 0, "premiere": None, "derniere": None}
 
-        # Générer des données CDR fictives cohérentes
         total = random.randint(8, 45)
-        debut = datetime(annee, mois, 1, 0, 0, 0)
-        fin   = datetime(annee, mois, 28, 23, 59, 59)
-        premiere = debut + timedelta(hours=random.randint(0, 12))
-        derniere  = fin  - timedelta(days=random.randint(1, 5),
-                                     hours=random.randint(0, 23))
+        from datetime import datetime, timedelta
+        debut = datetime(annee, mois, 1)
+        import calendar
+        fin   = datetime(annee, mois, calendar.monthrange(annee, mois)[1])
+        prem  = debut + timedelta(hours=random.randint(0, 12))
+        dern  = fin   - timedelta(days=random.randint(1, 5))
         return {
             "total":    total,
-            "premiere": premiere.strftime("%Y-%m-%d %H:%M:%S"),
-            "derniere": derniere.strftime("%Y-%m-%d %H:%M:%S"),
+            "premiere": prem.strftime("%Y-%m-%d %H:%M:%S"),
+            "derniere": dern.strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-    def _generer_abonne_fictif(self, numero: str) -> dict:
-        """Générer un abonné fictif cohérent pour les numéros non définis"""
-        # Tirage réaliste basé sur les statistiques terrain
-        poids = ["Normal"] * 65 + ["Suspend"] * 25 + ["No record found"] * 10
-        statut = random.choice(poids)
-        return {
-            "statut":          statut,
-            "historique":      statut == "Normal" and random.random() > 0.3,
-            "derniere_session": (
-                (datetime.now() - timedelta(days=random.randint(1, 30))
-                 ).strftime("%Y-%m-%d %H:%M:%S")
-                if statut == "Normal" else None
-            ),
-        }
+    def _get_abonne(self, numero: str) -> dict:
+        """Récupérer ou générer un profil abonné fictif"""
+        if numero in ABONNES_FICTIFS:
+            return ABONNES_FICTIFS[numero]
 
-
-# ── Test rapide ────────────────────────────────────────────────
-if __name__ == "__main__":
-    client = AAAMockClient()
-    for num in ["222230001", "222310002", "222230003", "222990999"]:
-        st = client.consulter_statut(num)
-        rx = client.consulter_radius(num)
-        print(f"\n{num} → Statut: {st['status']} | Zone: {st['zone']}")
-        print(f"  Radius → Connecté: {rx.get('connecte')} | Trafic: {rx.get('trafic_mb')} MB")
+        # Générer aléatoirement pour numéros non définis
+        # Distribution réaliste terrain CAMTEL
+        r = random.random()
+        if r < 0.45:   # 45% Normal connecté
+            return {"statut":"Normal","connecte":True,"trafic_mb":random.uniform(10,500),
+                    "codes_erreur":{},"nb_successful":random.randint(5,30),"nb_failed":0}
+        elif r < 0.65: # 20% Absence auth
+            return {"statut":"Normal","connecte":False,"trafic_mb":0,
+                    "codes_erreur":{},"nb_successful":0,"nb_failed":0}
+        elif r < 0.78: # 13% Problème mot de passe
+            code = random.choice(["109020102","109022520"])
+            return {"statut":"Normal","connecte":False,"trafic_mb":0,
+                    "codes_erreur":{code:random.randint(2,10)},"nb_successful":0,"nb_failed":5}
+        elif r < 0.90: # 12% Suspendu
+            return {"statut":"Suspend","connecte":False,"trafic_mb":0,
+                    "codes_erreur":{},"nb_successful":0,"nb_failed":0}
+        elif r < 0.96: # 6% Blocage CRM
+            return {"statut":"Normal","connecte":False,"trafic_mb":0,
+                    "codes_erreur":{"109129999":random.randint(1,5)},"nb_successful":0,"nb_failed":3}
+        else:          # 4% Inexistant
+            return {"statut":"No record found","connecte":False,"trafic_mb":0,
+                    "codes_erreur":{},"nb_successful":0,"nb_failed":0}
